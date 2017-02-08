@@ -61,6 +61,7 @@ set nu
 set relativenumber
 syntax on
 hi ColorColumn ctermbg=black
+highlight LineNr ctermfg=magenta
 set tags=tags
 set laststatus=1
 let Tlist_WinWidth = 40
