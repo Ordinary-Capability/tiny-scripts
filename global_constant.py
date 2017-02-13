@@ -214,9 +214,9 @@ def get_time_sync_pattern():
 
 _EVENT_KEY_WORD = {
     str(EVENT_LAUNCH_TIME):
-                        [('ActivityManager: START u0', 'init: Bootanimation is turned off')],
+                        [('ActivityManager: START u0', 'Kernel.*?init: Bootanimation is turned off')],
    str(EVENT_PRELOAD_TIME):
-                        [('I boot_progress_preload_start', 'I boot_progress_preload_end')],
+                        [('boot_progress_preload_start', 'boot_progress_preload_end')],
    str(EVENT_ZYGOTE_TIME):
                         [(r'START com\.android\.internal\.os\.ZygoteInit',)],
    str(EVENT_SYS_SERVER_TIME):
@@ -228,8 +228,8 @@ _EVENT_KEY_WORD = {
    str(EVENT_AMS2LUT_TIME):
                         [('boot_progress_ams_ready', 'ActivityManager: START u0')],
    str(EVENT_WIFI_RETRIVE):
-                        [('FeatureConnectivity.*ResumeBegin', 'WifiStateMachine DHCP successful'),
-                         ('ScreenPowerReceiver: action=android.intent.action.SCREEN_ON','WifiStateMachine DHCP successful')],
+                        [('ScreenPowerReceiver: action=android.intent.action.SCREEN_ON', 'WifiStateMachine: WifiStateMachine DHCP successful'),
+                        ('FeatureConnectivity.*?ResumeBegin', 'WifiStateMachine: WifiStateMachine DHCP successful')],
                   }
 
 def _build_event_sre_pattern(event):
@@ -274,9 +274,12 @@ def get_event_list(module):
     else:
         return []
 
-def get_event_key_word(event):
+def get_event_key_word(plt,event):
     global _EVENT_KEY_WORD
-    return _EVENT_KEY_WORD[str(event)]
+    if plt == 1: #apollo 
+        return _EVENT_KEY_WORD[str(event)][0]
+    if plt == 2: #helios
+        return _EVENT_KEY_WORD[str(event)][1]
 
 
 if __name__ == '__main__':

@@ -127,46 +127,54 @@ def mode_2kwd_gap_capture(task):
                 for event in event_list:
                     if  re.findall(gc.event_sre_pattern_dict[str(event)], line):
                         event_result[str(event)] += line
-                        print line
     except Exception,msg:
         logging.error('log_analyze fail: %s'%msg.message)
         return (False, msg.message)
 
+    event_time_sync_pattern = r'.*?(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+\d+\s+\d+\sD\s'\
+                               + gc.get_time_sync_pattern() + r'(\d{13})'
+    event_time_sync_sre_pat = re.compile(event_time_sync_pattern)
     for event in event_list:
-        for plt_kwd in gc.get_event_key_word(event):
-            if len(plt_kwd) == 1:
-                event_pattern = r'(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*?'+ plt_kwd[0]
-                time_str_list = re.findall(event_pattern, event_result[str(event)])
-                final_time_result[str(event)] = time_str_list
-                break
-
-            event_pattern = r'.*(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*' + plt_kwd[0]\
-                             + r'.*(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*' + plt_kwd[1]
-            event_pattern_time_sync = r'(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*'+ plt_kwd[0]\
-                                     + r'.*(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+\d+\s+\d+\sD\s'\
-                                     + gc.get_time_sync_pattern() + r'(\d{13})'\
-                                     + r'.*(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*' + plt_kwd[1]
-            time_str_list = re.findall(event_pattern_time_sync, event_result[str(event)],re.S)
-            if time_str_list:
-                logging.debug('event timestamp(time sync): %d'%event + ' -- {}'.format(time_str_list))
-                for time_tuple in time_str_list:
-                    time_sync_gap = float(time_tuple[2])/1000 - time_format(time_tuple[1]) 
-                    time_gap = time_format(time_tuple[3]) - time_format(time_tuple[0]) - time_sync_gap
-                    final_time_result[str(event)].append("%.3f"%time_gap)
-                break
-            else:
-                time_str_list = re.findall(event_pattern, event_result[str(event)],re.S)
-                if not time_str_list:
+        plt_kwd = gc.get_event_key_word(task['plt'],event)
+        if len(plt_kwd) == 1:
+            event_pattern = r'(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*?'+ plt_kwd[0]
+            time_str_list = re.findall(event_pattern, event_result[str(event)])
+            final_time_result[str(event)] = time_str_list
+            continue
+        event_pattern = r'(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+\d+\s+\d+\s[IEDWV]\s' + plt_kwd[0]\
+                         + r'(.*?)(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+\d+\s+\d+\s[IEDWV]\s' + plt_kwd[1]
+        time_str_list = re.findall(event_pattern, event_result[str(event)],re.S)
+        logging.debug('event timestamp: %d'%event + ' -- {}'.format(time_str_list))
+        if not time_str_list:
+            continue
+        for time_tuple in time_str_list:
+            time_sync_gap = 0
+            time_sync = re.findall(event_time_sync_sre_pat,time_tuple[1])
+            if time_sync:
+                if len(time_sync)==1:
+                    print time_sync
+                    time_sync_gap = float(time_sync[0][1])/1000 - time_format(time_sync[0][0])
+                elif len(time_sync) > 1:
                     continue
-                print event_pattern
-                logging.debug('event timestamp(no time sync): %d'%event + ' -- {}'.format(time_str_list))
-                for time_tuple in time_str_list:
-                    final_time_result[str(event)].append("%.3f"%(time_format(time_tuple[1])
-                                                         - time_format(time_tuple[0])))
-                break
+            final_time_result[str(event)].append("%.3f"%(time_format(time_tuple[2])
+                                                     - time_format(time_tuple[0])
+                                                     - time_sync_gap))
+#            event_pattern_time_sync = r'(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+\d+\s+\d+\s[IEDW]\s'+ plt_kwd[0]\
+#                                     + r'.*?(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+\d+\s+\d+\sD\s'\
+#                                     + gc.get_time_sync_pattern() + r'(\d{13})'\
+#                                     + r'.*?(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*?' + plt_kwd[1]
+#            time_str_list = re.findall(event_pattern_time_sync, event_result[str(event)],re.S)
+#            if time_str_list:
+#                logging.debug('event timestamp(time sync): %d'%event + ' -- {}'.format(time_str_list))
+#                for time_tuple in time_str_list:
+#                    time_sync_gap = float(time_tuple[2])/1000 - time_format(time_tuple[1]) 
+#                    time_gap = time_format(time_tuple[3]) - time_format(time_tuple[0]) - time_sync_gap
+#                    final_time_result[str(event)].append("%.3f"%time_gap)
+#                break
+#            else:
 
     end_time = time.time()
-    logging.debug("task time consume: %s second"%(end_time - start_time))
+    logging.debug("task time consume: %f second"%(end_time - start_time))
     return (True, json.dumps(final_time_result))
 
 
@@ -328,6 +336,7 @@ def task_para_verify(task):
         '''
         json format:
         {type:[int],
+         plt:int
          module:[int],
          mode:[int],
          log_url:[string list]
@@ -336,6 +345,8 @@ def task_para_verify(task):
          }
 
         '''
+        if task['plt'] not in [1,2]:
+            raise Exception('Unknow platform: %d'%task['plt'])
         if task['type'] == gc.ANALYZE_TYPE_SINGLE:
             if task['module'] not in gc.get_module_list():
                 raise Exception('Unkown module: %s'%task['module'])
@@ -484,7 +495,7 @@ def signal_handler(signum, frame):
 def main():
     global running
     loglevel = logging.DEBUG
-    fork = True 
+    fork = True
 
     logger = log_config(loglevel,fork)
     signal.signal(signal.SIGINT, signal_handler)
@@ -534,6 +545,6 @@ if __name__ == '__main__':
 #    print gc.get_event_key_word(4)
 #    print gc.event_sre_pattern_dict[str(4)].pattern
 #    print gc.get_event_key_word(4)[0]
-
+#    print gc.get_event_key_word(1,3)
 
 
