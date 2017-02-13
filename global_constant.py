@@ -212,32 +212,35 @@ def get_time_sync_pattern():
     global _TIME_SYNC
     return _TIME_SYNC
 
-_EVENT_KEY_WORD = {str(EVENT_LAUNCH_TIME):
-                                        ('ActivityManager: START u0', 'init: Bootanimation is turned off'),
-                   str(EVENT_PRELOAD_TIME):
-                                        ('I boot_progress_preload_start', 'I boot_progress_preload_end'),
-                   str(EVENT_ZYGOTE_TIME):
-                                        (r'START com\.android\.internal\.os\.ZygoteInit',),
-                   str(EVENT_SYS_SERVER_TIME):
-                                        ('boot_progress_system_run', 'boot_progress_pms_start'),
-                   str(EVENT_PMS_TIME):
-                                        ('boot_progress_pms_start', 'boot_progress_pms_scan_end'),
-                   str(EVENT_PMS2AMS_TIME):
-                                        ('boot_progress_pms_ready', 'boot_progress_ams_ready'),
-                   str(EVENT_AMS2LUT_TIME):
-                                        ('boot_progress_ams_ready', 'ActivityManager: START u0'),
-                   str(EVENT_WIFI_RETRIVE):('setWifiEnable.*?true','CONNECTIVITY_CHANGE_IMMEDIATE')}
-#                                        ('FeatureConnectivity.*ResumeBegin', 'WifiStateMachine DHCP successful'),
-#                  }
+_EVENT_KEY_WORD = {
+    str(EVENT_LAUNCH_TIME):
+                        [('ActivityManager: START u0', 'init: Bootanimation is turned off')],
+   str(EVENT_PRELOAD_TIME):
+                        [('I boot_progress_preload_start', 'I boot_progress_preload_end')],
+   str(EVENT_ZYGOTE_TIME):
+                        [(r'START com\.android\.internal\.os\.ZygoteInit',)],
+   str(EVENT_SYS_SERVER_TIME):
+                        [('boot_progress_system_run', 'boot_progress_pms_start')],
+   str(EVENT_PMS_TIME):
+                        [('boot_progress_pms_start', 'boot_progress_pms_scan_end')],
+   str(EVENT_PMS2AMS_TIME):
+                        [('boot_progress_pms_ready', 'boot_progress_ams_ready')],
+   str(EVENT_AMS2LUT_TIME):
+                        [('boot_progress_ams_ready', 'ActivityManager: START u0')],
+   str(EVENT_WIFI_RETRIVE):
+                        [('FeatureConnectivity.*ResumeBegin', 'WifiStateMachine DHCP successful'),
+                         ('ScreenPowerReceiver: action=android.intent.action.SCREEN_ON','WifiStateMachine DHCP successful')],
+                  }
 
 def _build_event_sre_pattern(event):
     global _EVENT_KEY_WORD
     global _TIME_SYNC
     raw_str = ''
-    if len(_EVENT_KEY_WORD[str(event)])==1:
-        return re.compile(_EVENT_KEY_WORD[str(event)][0])
-    for e in _EVENT_KEY_WORD[str(event)]:
-        raw_str +=('|' + e)
+    if not _EVENT_KEY_WORD[str(event)]:
+        return None
+    for m in _EVENT_KEY_WORD[str(event)]:
+        for n in m:
+            raw_str +=('|' + n)
     if not raw_str:
         return None
     sre_pattern = re.compile(_TIME_SYNC + raw_str)
@@ -276,4 +279,5 @@ def get_event_key_word(event):
     return _EVENT_KEY_WORD[str(event)]
 
 
-
+if __name__ == '__main__':
+    print _build_event_sre_pattern(4).pattern

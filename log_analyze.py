@@ -133,34 +133,41 @@ def mode_2kwd_gap_capture(task):
         return (False, msg.message)
 
     for event in event_list:
-        if len(gc.get_event_key_word(event)) == 1:
-            event_pattern = r'(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*?'+ gc.get_event_key_word(event)[0]
-            time_str_list = re.findall(event_pattern, event_result[str(event)])
-            final_time_result[str(event)] = time_str_list
-            continue
+        for plt_kwd in gc.get_event_key_word(event):
+            if len(plt_kwd) == 1:
+                event_pattern = r'(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*?'+ plt_kwd[0]
+                time_str_list = re.findall(event_pattern, event_result[str(event)])
+                final_time_result[str(event)] = time_str_list
+                break
 
-        event_pattern = r'(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*?'+ gc.get_event_key_word(event)[0]\
-                         + r'.*(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*?'+gc.get_event_key_word(event)[1]
-        event_pattern_time_sync = r'(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*?'+ gc.get_event_key_word(event)[0]\
-                                 + r'.*(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+\d+\s+\d+\sD\s'\
-                                 + gc.get_time_sync_pattern() + r'(\d{13})'\
-                                 + r'.*(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*?'+gc.get_event_key_word(event)[1]
-        time_str_list = re.findall(event_pattern_time_sync, event_result[str(event)],re.S)
-        if time_str_list:
-            logging.debug('event timestamp(time sync): %d'%event + ' -- {}'.format(time_str_list))
-            for time_tuple in time_str_list:
-                time_sync_gap = float(time_tuple[2])/1000 - time_format(time_tuple[1]) 
-                time_gap = time_format(time_tuple[3]) - time_format(time_tuple[0]) - time_sync_gap
-                final_time_result[str(event)].append("%.3f"%time_gap)
-        else:
-            time_str_list = re.findall(event_pattern, event_result[str(event)],re.S)
-            logging.debug('event timestamp(no time sync): %d'%event + ' -- {}'.format(time_str_list))
-            for time_tuple in time_str_list:
-                final_time_result[str(event)].append("%.3f"%(time_format(time_tuple[1])
+            event_pattern = r'.*(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*' + plt_kwd[0]\
+                             + r'.*(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*' + plt_kwd[1]
+            event_pattern_time_sync = r'(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*'+ plt_kwd[0]\
+                                     + r'.*(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+\d+\s+\d+\sD\s'\
+                                     + gc.get_time_sync_pattern() + r'(\d{13})'\
+                                     + r'.*(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*' + plt_kwd[1]
+            time_str_list = re.findall(event_pattern_time_sync, event_result[str(event)],re.S)
+            if time_str_list:
+                logging.debug('event timestamp(time sync): %d'%event + ' -- {}'.format(time_str_list))
+                for time_tuple in time_str_list:
+                    time_sync_gap = float(time_tuple[2])/1000 - time_format(time_tuple[1]) 
+                    time_gap = time_format(time_tuple[3]) - time_format(time_tuple[0]) - time_sync_gap
+                    final_time_result[str(event)].append("%.3f"%time_gap)
+                break
+            else:
+                time_str_list = re.findall(event_pattern, event_result[str(event)],re.S)
+                if not time_str_list:
+                    continue
+                print event_pattern
+                logging.debug('event timestamp(no time sync): %d'%event + ' -- {}'.format(time_str_list))
+                for time_tuple in time_str_list:
+                    final_time_result[str(event)].append("%.3f"%(time_format(time_tuple[1])
                                                          - time_format(time_tuple[0])))
+                break
+
     end_time = time.time()
     logging.debug("task time consume: %s second"%(end_time - start_time))
-    return (True, '{}'.format(final_time_result))
+    return (True, json.dumps(final_time_result))
 
 
 def single_analyze(task):
@@ -415,6 +422,7 @@ def start_listen_service():
         s.listen(5)
         s.settimeout(1)
     except Exception,msg:
+        print msg
         logging.error(msg)
         running = False
         sys.exit(1)
@@ -476,7 +484,7 @@ def signal_handler(signum, frame):
 def main():
     global running
     loglevel = logging.DEBUG
-    fork = False
+    fork = True 
 
     logger = log_config(loglevel,fork)
     signal.signal(signal.SIGINT, signal_handler)
@@ -517,6 +525,7 @@ def main():
     db_disconnect()
     lockfile.release()
     time.sleep(1)
+    print  'log analyze process stop'
     logging.info('log analyze process stop.')
     
 
