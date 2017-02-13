@@ -206,12 +206,18 @@ _MODULE_EVNT_DIC = {
                     str(MDL_WIFI):[EVENT_WIFI_RETRIVE],
                     }
 
+#01-01 20:00:14.311  1689  2028 D NetworkTimeUpdateService: Ntp time to be set = 1486722218490
+_TIME_SYNC = "NetworkTimeUpdateService: Ntp time to be set = "
+def get_time_sync_pattern():
+    global _TIME_SYNC
+    return _TIME_SYNC
+
 _EVENT_KEY_WORD = {str(EVENT_LAUNCH_TIME):
                                         ('ActivityManager: START u0', 'init: Bootanimation is turned off'),
                    str(EVENT_PRELOAD_TIME):
                                         ('I boot_progress_preload_start', 'I boot_progress_preload_end'),
                    str(EVENT_ZYGOTE_TIME):
-                                        ('AndroidRuntime START com.android.internal.os.ZygoteInit'),
+                                        (r'START com\.android\.internal\.os\.ZygoteInit',),
                    str(EVENT_SYS_SERVER_TIME):
                                         ('boot_progress_system_run', 'boot_progress_pms_start'),
                    str(EVENT_PMS_TIME):
@@ -226,17 +232,20 @@ _EVENT_KEY_WORD = {str(EVENT_LAUNCH_TIME):
 
 def _build_event_sre_pattern(event):
     global _EVENT_KEY_WORD
+    global _TIME_SYNC
     raw_str = ''
+    if len(_EVENT_KEY_WORD[str(event)])==1:
+        return re.compile(_EVENT_KEY_WORD[str(event)][0])
     for e in _EVENT_KEY_WORD[str(event)]:
         raw_str +=('|' + e)
-    sre_pattern = re.compile(raw_str[1:])
-    if not sre_pattern.pattern:
+    if not raw_str:
         return None
+    sre_pattern = re.compile(_TIME_SYNC + raw_str)
     return sre_pattern
 
 event_launch_time = _build_event_sre_pattern(str(EVENT_LAUNCH_TIME))
 event_preload_time = _build_event_sre_pattern(str(EVENT_PRELOAD_TIME))
-event_zygote_time = _build_event_sre_pattern(str(EVENT_SYS_SERVER_TIME))
+event_zygote_time = _build_event_sre_pattern(str(EVENT_ZYGOTE_TIME))
 event_pms_time = _build_event_sre_pattern(str(EVENT_PMS_TIME))
 event_pms2ams_time = _build_event_sre_pattern(str(EVENT_PMS2AMS_TIME))
 event_ams2lut_time = _build_event_sre_pattern(str(EVENT_AMS2LUT_TIME))

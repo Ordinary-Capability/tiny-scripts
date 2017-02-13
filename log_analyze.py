@@ -122,6 +122,7 @@ def mode_2kwd_gap_capture(task):
             while running:
                 line = ret.readline()
                 if not line:
+                    ret.close()
                     break
                 for event in event_list:
                     if  re.findall(gc.event_sre_pattern_dict[str(event)], line):
@@ -132,12 +133,30 @@ def mode_2kwd_gap_capture(task):
         return (False, msg.message)
 
     for event in event_list:
+        if len(gc.get_event_key_word(event)) == 1:
+            event_pattern = r'(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*?'+ gc.get_event_key_word(event)[0]
+            time_str_list = re.findall(event_pattern, event_result[str(event)])
+            final_time_result[str(event)] = time_str_list
+            continue
+
         event_pattern = r'(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*?'+ gc.get_event_key_word(event)[0]\
-                         + r'.*?(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*?'+gc.get_event_key_word(event)[1]
-        time_str_list = re.findall(event_pattern, event_result[str(event)],re.S)
-        logging.debug('event: %d'%event + ' -- {}'.format(time_str_list))
-        for time_tuple in time_str_list:
-            final_time_result[str(event)].append("%.3f"%(time_format(time_tuple[1])
+                         + r'.*(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*?'+gc.get_event_key_word(event)[1]
+        event_pattern_time_sync = r'(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*?'+ gc.get_event_key_word(event)[0]\
+                                 + r'.*(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+\d+\s+\d+\sD\s'\
+                                 + gc.get_time_sync_pattern() + r'(\d{13})'\
+                                 + r'.*(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*?'+gc.get_event_key_word(event)[1]
+        time_str_list = re.findall(event_pattern_time_sync, event_result[str(event)],re.S)
+        if time_str_list:
+            logging.debug('event timestamp(time sync): %d'%event + ' -- {}'.format(time_str_list))
+            for time_tuple in time_str_list:
+                time_sync_gap = float(time_tuple[2])/1000 - time_format(time_tuple[1]) 
+                time_gap = time_format(time_tuple[3]) - time_format(time_tuple[0]) - time_sync_gap
+                final_time_result[str(event)].append("%.3f"%time_gap)
+        else:
+            time_str_list = re.findall(event_pattern, event_result[str(event)],re.S)
+            logging.debug('event timestamp(no time sync): %d'%event + ' -- {}'.format(time_str_list))
+            for time_tuple in time_str_list:
+                final_time_result[str(event)].append("%.3f"%(time_format(time_tuple[1])
                                                          - time_format(time_tuple[0])))
     end_time = time.time()
     logging.debug("task time consume: %s second"%(end_time - start_time))
@@ -189,6 +208,7 @@ def cluster_mode_2kwd_gap_capture(task):
                                 result.append((cluster[i][0], gap))
                                 first_time = second_time = 0
                     else:
+                        ret.close()
                         break
             except Exception,msg:
                 result.append((cluster[i][0], msg.message))
@@ -502,9 +522,9 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-
+#    print gc.get_event_key_word(4)
+#    print gc.event_sre_pattern_dict[str(4)].pattern
+#    print gc.get_event_key_word(4)[0]
 
 
 
