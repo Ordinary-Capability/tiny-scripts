@@ -186,13 +186,14 @@ def get_fatal_key_word(module):
 
 EVENT_LAUNCH_TIME = 1
 EVENT_PRELOAD_TIME = 2
-EVENT_WIFI_RETRIVE = 3
+EVENT_WIFI_RETRIVE_STR = 3
 EVENT_ZYGOTE_TIME = 4
 EVENT_SYS_SERVER_TIME = 5
 EVENT_PMS_TIME = 6
 EVENT_PMS2AMS_TIME = 7
 EVENT_AMS2LUT_TIME = 8
-EVENT_END = 9
+EVENT_WIFI_RETRIVE_AC_ONOFF = 9
+EVENT_END = 10
 
 
 _MODULE_EVNT_DIC = {
@@ -203,7 +204,8 @@ _MODULE_EVNT_DIC = {
                                      EVENT_PMS_TIME,
                                      EVENT_PMS2AMS_TIME,
                                      EVENT_AMS2LUT_TIME],
-                    str(MDL_WIFI):[EVENT_WIFI_RETRIVE],
+                    str(MDL_WIFI):[EVENT_WIFI_RETRIVE_STR,
+                                   EVENT_WIFI_RETRIVE_AC_ONOFF],
                     }
 
 #01-01 20:00:14.311  1689  2028 D NetworkTimeUpdateService: Ntp time to be set = 1486722218490
@@ -215,21 +217,26 @@ def get_time_sync_pattern():
 _EVENT_KEY_WORD = {
     str(EVENT_LAUNCH_TIME):
                         [('ActivityManager: START u0', 'Kernel.*?init: Bootanimation is turned off')],
-   str(EVENT_PRELOAD_TIME):
+    str(EVENT_PRELOAD_TIME):
                         [('boot_progress_preload_start', 'boot_progress_preload_end')],
-   str(EVENT_ZYGOTE_TIME):
+    str(EVENT_ZYGOTE_TIME):
                         [(r'START com\.android\.internal\.os\.ZygoteInit',)],
-   str(EVENT_SYS_SERVER_TIME):
+    str(EVENT_SYS_SERVER_TIME):
                         [('boot_progress_system_run', 'boot_progress_pms_start')],
-   str(EVENT_PMS_TIME):
+    str(EVENT_PMS_TIME):
                         [('boot_progress_pms_start', 'boot_progress_pms_scan_end')],
-   str(EVENT_PMS2AMS_TIME):
+    str(EVENT_PMS2AMS_TIME):
                         [('boot_progress_pms_ready', 'boot_progress_ams_ready')],
-   str(EVENT_AMS2LUT_TIME):
+    str(EVENT_AMS2LUT_TIME):
                         [('boot_progress_ams_ready', 'ActivityManager: START u0')],
-   str(EVENT_WIFI_RETRIVE):
-                        [('ScreenPowerReceiver: action=android.intent.action.SCREEN_ON', 'WifiStateMachine: WifiStateMachine DHCP successful'),
-                        ('FeatureConnectivity.*?ResumeBegin', 'WifiStateMachine: WifiStateMachine DHCP successful')],
+    str(EVENT_WIFI_RETRIVE_STR):
+                        [(r'FeatureConnectivity: ResumeBegin', r'WifiStateMachine:\sWifiStateMachine DHCP successful'),
+                         (r'ScreenPowerReceiver: action=android.intent.action.SCREEN_ON', r'WifiStateMachine:\sWifiStateMachine DHCP successful')],
+    str(EVENT_WIFI_RETRIVE_AC_ONOFF):
+                        [(r'WifiStateMachine:\ssetWifiState: enabled',\
+                              r'ADT TEST LOG GET LAUNCHER',\
+                              r'WifiStateMachine:\sWifiStateMachine DHCP successful'),
+                          ()],
                   }
 
 def _build_event_sre_pattern(event):
@@ -252,8 +259,10 @@ event_zygote_time = _build_event_sre_pattern(str(EVENT_ZYGOTE_TIME))
 event_pms_time = _build_event_sre_pattern(str(EVENT_PMS_TIME))
 event_pms2ams_time = _build_event_sre_pattern(str(EVENT_PMS2AMS_TIME))
 event_ams2lut_time = _build_event_sre_pattern(str(EVENT_AMS2LUT_TIME))
-event_wifi_retrive = _build_event_sre_pattern(str(EVENT_WIFI_RETRIVE))
+event_wifi_retrive = _build_event_sre_pattern(str(EVENT_WIFI_RETRIVE_STR))
 event_sys_server_time = _build_event_sre_pattern(str(EVENT_SYS_SERVER_TIME))
+event_wifi_retrive_ac_onoff = _build_event_sre_pattern(str(EVENT_WIFI_RETRIVE_AC_ONOFF))
+
 
 event_sre_pattern_dict = {str(EVENT_LAUNCH_TIME): event_launch_time,
                           str(EVENT_PRELOAD_TIME): event_preload_time,
@@ -262,7 +271,8 @@ event_sre_pattern_dict = {str(EVENT_LAUNCH_TIME): event_launch_time,
                           str(EVENT_PMS_TIME): event_pms_time,
                           str(EVENT_PMS2AMS_TIME): event_pms2ams_time,
                           str(EVENT_AMS2LUT_TIME): event_ams2lut_time,
-                          str(EVENT_WIFI_RETRIVE): event_wifi_retrive}
+                          str(EVENT_WIFI_RETRIVE_STR): event_wifi_retrive,
+                          str(EVENT_WIFI_RETRIVE_AC_ONOFF): event_wifi_retrive_ac_onoff}
                 
 def get_evnet_sre_pattern(event):
     return event_sre_pattern_dict[str(event)]

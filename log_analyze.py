@@ -127,11 +127,12 @@ def mode_2kwd_gap_capture(task):
                 for event in event_list:
                     if  re.findall(gc.event_sre_pattern_dict[str(event)], line):
                         event_result[str(event)] += line
+                        print line
     except Exception,msg:
         logging.error('log_analyze fail: %s'%msg.message)
         return (False, msg.message)
 
-    event_time_sync_pattern = r'.*?(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+\d+\s+\d+\sD\s'\
+    event_time_sync_pattern = r'(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+\d+\s+\d+\sD\s'\
                                + gc.get_time_sync_pattern() + r'(\d{13})'
     event_time_sync_sre_pat = re.compile(event_time_sync_pattern)
     for event in event_list:
@@ -139,26 +140,51 @@ def mode_2kwd_gap_capture(task):
         if len(plt_kwd) == 1:
             event_pattern = r'(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}).*?'+ plt_kwd[0]
             time_str_list = re.findall(event_pattern, event_result[str(event)])
+            logging.info('event timestamp: %d'%event + ' -- {}'.format(time_str_list))
+            logging.debug('event pattern: %s'%event_pattern)
             final_time_result[str(event)] = time_str_list
             continue
-        event_pattern = r'(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+\d+\s+\d+\s[IEDWV]\s' + plt_kwd[0]\
-                         + r'(.*?)(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+\d+\s+\d+\s[IEDWV]\s' + plt_kwd[1]
-        time_str_list = re.findall(event_pattern, event_result[str(event)],re.S)
-        logging.debug('event timestamp: %d'%event + ' -- {}'.format(time_str_list))
-        if not time_str_list:
-            continue
-        for time_tuple in time_str_list:
-            time_sync_gap = 0
-            time_sync = re.findall(event_time_sync_sre_pat,time_tuple[1])
-            if time_sync:
-                if len(time_sync)==1:
-                    print time_sync
-                    time_sync_gap = float(time_sync[0][1])/1000 - time_format(time_sync[0][0])
-                elif len(time_sync) > 1:
-                    continue
-            final_time_result[str(event)].append("%.3f"%(time_format(time_tuple[2])
-                                                     - time_format(time_tuple[0])
-                                                     - time_sync_gap))
+
+        if len(plt_kwd) == 2:
+            print event_result[str(event)]
+            event_pattern = r'(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+\d+\s+\d+\s[IEDWV]\s' + plt_kwd[0]\
+                             + r'(.*?)(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+\d+\s+\d+\s[IEDWV]\s' + plt_kwd[1]
+            time_str_list = re.findall(event_pattern, event_result[str(event)],re.S)
+            logging.info('event timestamp: %d'%event + ' -- {}'.format(time_str_list))
+            logging.debug('event pattern: %s'%event_pattern)
+            if not time_str_list:
+                continue
+            for time_tuple in time_str_list:
+                time_sync_gap = 0
+                time_sync = re.findall(event_time_sync_sre_pat,time_tuple[1])
+                if time_sync:
+                    if len(time_sync)==1:
+                        print time_sync
+                        time_sync_gap = float(time_sync[0][1])/1000 - time_format(time_sync[0][0])
+                    elif len(time_sync) > 1:
+                        continue
+                final_time_result[str(event)].append("%.3f"%(time_format(time_tuple[2])
+                                                         - time_format(time_tuple[0])
+                                                         - time_sync_gap))
+        if len(plt_kwd) == 3:
+            event_pattern = r'(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+\d+\s+\d+\s[IEDWV]\s' + plt_kwd[0]\
+                             + r'(.*?)(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+\d+\s+\d+\s[IEDWV]\s' + plt_kwd[2]
+            time_str_list = re.findall(event_pattern, event_result[str(event)],re.S)
+            logging.info('event timestamp: %d'%event + ' -- {}'.format(time_str_list))
+            logging.debug('event pattern: %s'%event_pattern)
+            if not time_str_list:
+                continue
+            for time_tuple in time_str_list:
+                time_begin_pattern = r'(.*\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+\d+\s+\d+\s[IEDWV]\s.*?' + plt_kwd[1] + r'.*'
+                time_begin_str = re.findall(time_begin_pattern, time_tuple[1])
+                if time_begin_str:
+                    final_time_result[str(event)].append("%.3f"%(time_format(time_tuple[2])
+                                                             - time_format(time_begin_str[0])))
+                else:
+                    final_time_result[str(event)].append(0.0)
+
+
+
 #            event_pattern_time_sync = r'(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+\d+\s+\d+\s[IEDW]\s'+ plt_kwd[0]\
 #                                     + r'.*?(\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+\d+\s+\d+\sD\s'\
 #                                     + gc.get_time_sync_pattern() + r'(\d{13})'\
@@ -495,7 +521,7 @@ def signal_handler(signum, frame):
 def main():
     global running
     loglevel = logging.DEBUG
-    fork = True
+    fork = False
 
     logger = log_config(loglevel,fork)
     signal.signal(signal.SIGINT, signal_handler)
@@ -536,9 +562,7 @@ def main():
     db_disconnect()
     lockfile.release()
     time.sleep(1)
-    print  'log analyze process stop'
     logging.info('log analyze process stop.')
-    
 
 if __name__ == '__main__':
     main()
@@ -546,5 +570,3 @@ if __name__ == '__main__':
 #    print gc.event_sre_pattern_dict[str(4)].pattern
 #    print gc.get_event_key_word(4)[0]
 #    print gc.get_event_key_word(1,3)
-
-
